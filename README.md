@@ -171,7 +171,7 @@ docker compose ps
 
 | Service | URL | Identifiants |
 |---|---|---|
-| Airflow UI | http://localhost:8080 | admin / admin |
+| Airflow UI | http://localhost:8085 | admin / admin |
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin123 |
 | Spark Master UI | http://localhost:8081 | — |
 

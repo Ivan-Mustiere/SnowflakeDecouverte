@@ -58,7 +58,7 @@ docker compose up -d
 docker compose ps               # vérifier que tout est healthy
 ```
 
-Airflow → http://localhost:8080 (admin/admin) | MinIO → http://localhost:9001 | Spark → http://localhost:8081
+Airflow → http://localhost:8085 (admin/admin) | MinIO → http://localhost:9001 | Spark → http://localhost:8081
 
 Avant le 1er run : exécuter `sf_loader/01_setup.sql` dans l'UI Snowflake (rôle ACCOUNTADMIN).
 

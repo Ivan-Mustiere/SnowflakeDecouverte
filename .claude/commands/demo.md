@@ -50,7 +50,7 @@ docker compose ps
 Montrer les 7 services : postgres, minio, minio-init, spark-master, spark-worker, airflow-webserver, airflow-scheduler.
 
 ### 3. Trigger DAG (1 min)
-Airflow UI → http://localhost:8080 → activer `nyc_taxi_pipeline`
+Airflow UI → http://localhost:8085 → activer `nyc_taxi_pipeline`
 → Trigger DAG w/ config :
 ```json
 { "logical_date": "2024-01-15" }
