@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: raw
+    database: NYC_TAXI
+    schema: RAW
+    description: "Données brutes chargées depuis MinIO via Airflow"
+    tables:
+      - name: yellow_trips
+        description: "Courses de taxis jaunes NYC, nettoyées par Spark"
+        columns:
+          - name: vendorid
+            description: "Identifiant du fournisseur (1=Creative Mobile, 2=VeriFone)"
+          - name: tpep_pickup_datetime
+            description: "Date/heure de début de course"
+            tests:
+              - not_null
+          - name: tpep_dropoff_datetime
+            description: "Date/heure de fin de course"
+            tests:
+              - not_null
+          - name: trip_distance
+            description: "Distance en miles"
+          - name: total_amount
+            description: "Montant total payé en USD"
+          - name: pulocationid
+            description: "Zone de prise en charge (FK vers taxi_zones)"
+          - name: dolocationid
+            description: "Zone de dépôt (FK vers taxi_zones)"
+          - name: payment_type
+            description: "Mode de paiement (1=carte, 2=cash, 3=gratuit, 4=conflit, 5=inconnu, 6=annulé)"
+      - name: taxi_zones
+        description: "Référentiel des 265 zones taxi de NYC (chargé via dbt seed)"

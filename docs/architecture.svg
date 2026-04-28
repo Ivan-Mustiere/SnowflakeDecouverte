@@ -1,0 +1,75 @@
+<svg width="100%" viewBox="0 0 680 460" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Architecture du pipeline NYC Taxi</title>
+<desc>Pipeline : NYC Open Data API -> MinIO (raw + staging) -> Spark -> Snowflake (RAW/STAGING/MARTS) -> DBT, orchestré par Airflow.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+  <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+<style>
+.box { fill: #F1EFE8; stroke: #5F5E5A; stroke-width: 0.5; }
+.minio { fill: #E6F1FB; stroke: #185FA5; stroke-width: 0.5; }
+.minio-sub { fill: #E1F5EE; stroke: #0F6E56; stroke-width: 0.5; }
+.spark { fill: #FAEEDA; stroke: #854F0B; stroke-width: 0.5; }
+.snow { fill: #EEEDFE; stroke: #3C3489; stroke-width: 0.5; }
+.snow-sub { fill: #FBEAF0; stroke: #993556; stroke-width: 0.5; }
+.dbt { fill: #FAECE7; stroke: #993C1D; stroke-width: 0.5; }
+.air { fill: #EAF3DE; stroke: #3B6D11; stroke-width: 0.5; }
+.t { font-family: sans-serif; font-size: 14px; font-weight: 500; fill: #2C2C2A; }
+.ts { font-family: sans-serif; font-size: 12px; fill: #5F5E5A; }
+.arr { stroke: #444441; stroke-width: 1.5; fill: none; }
+</style>
+</defs>
+<rect x="40" y="50" width="140" height="56" rx="8" class="box"/>
+<text class="t" x="110" y="78" text-anchor="middle">NYC Open Data</text>
+<text class="ts" x="110" y="96" text-anchor="middle">Socrata API (JSON)</text>
+
+<rect x="240" y="30" width="200" height="180" rx="12" class="minio"/>
+<text class="t" x="340" y="55" text-anchor="middle">MinIO Data Lake</text>
+<rect x="260" y="74" width="160" height="50" rx="6" class="minio-sub"/>
+<text class="t" x="340" y="95" text-anchor="middle">raw / yellow_taxi</text>
+<text class="ts" x="340" y="113" text-anchor="middle">Parquet partitionné</text>
+<rect x="260" y="138" width="160" height="50" rx="6" class="minio-sub"/>
+<text class="t" x="340" y="159" text-anchor="middle">staging / yellow_taxi</text>
+<text class="ts" x="340" y="177" text-anchor="middle">Nettoyé + enrichi</text>
+
+<rect x="500" y="50" width="140" height="56" rx="8" class="spark"/>
+<text class="t" x="570" y="78" text-anchor="middle">PySpark</text>
+<text class="ts" x="570" y="96" text-anchor="middle">Clean &amp; enrich</text>
+
+<rect x="240" y="240" width="400" height="180" rx="12" class="snow"/>
+<text class="t" x="440" y="265" text-anchor="middle">Snowflake Data Warehouse</text>
+<rect x="260" y="284" width="115" height="50" rx="6" class="snow-sub"/>
+<text class="t" x="317" y="305" text-anchor="middle">RAW</text>
+<text class="ts" x="317" y="323" text-anchor="middle">yellow_trips</text>
+<rect x="385" y="284" width="115" height="50" rx="6" class="snow-sub"/>
+<text class="t" x="442" y="305" text-anchor="middle">STAGING</text>
+<text class="ts" x="442" y="323" text-anchor="middle">stg_trips</text>
+<rect x="510" y="284" width="115" height="50" rx="6" class="snow-sub"/>
+<text class="t" x="567" y="305" text-anchor="middle">MARTS</text>
+<text class="ts" x="567" y="323" text-anchor="middle">fact + dims</text>
+<rect x="260" y="350" width="365" height="50" rx="6" class="dbt"/>
+<text class="t" x="442" y="371" text-anchor="middle">DBT</text>
+<text class="ts" x="442" y="389" text-anchor="middle">Star schema + tests qualité</text>
+
+<rect x="40" y="240" width="140" height="80" rx="8" class="air"/>
+<text class="t" x="110" y="270" text-anchor="middle">Airflow</text>
+<text class="ts" x="110" y="288" text-anchor="middle">DAG quotidien</text>
+<text class="ts" x="110" y="306" text-anchor="middle">orchestre tout</text>
+
+<rect x="40" y="350" width="140" height="50" rx="6" class="box"/>
+<text class="t" x="110" y="371" text-anchor="middle">Monitoring</text>
+<text class="ts" x="110" y="389" text-anchor="middle">pipeline_runs</text>
+
+<line x1="180" y1="78" x2="238" y2="98" class="arr" marker-end="url(#arrow)"/>
+<line x1="420" y1="98" x2="500" y2="78" class="arr" marker-end="url(#arrow)"/>
+<line x1="500" y1="98" x2="420" y2="160" class="arr" marker-end="url(#arrow)"/>
+<line x1="340" y1="190" x2="340" y2="280" class="arr" marker-end="url(#arrow)"/>
+<line x1="375" y1="309" x2="383" y2="309" class="arr" marker-end="url(#arrow)"/>
+<line x1="500" y1="309" x2="508" y2="309" class="arr" marker-end="url(#arrow)"/>
+<line x1="442" y1="348" x2="442" y2="338" class="arr" marker-end="url(#arrow)"/>
+
+<line x1="180" y1="260" x2="238" y2="120" stroke="#085041" stroke-width="0.5" stroke-dasharray="3 3"/>
+<line x1="180" y1="280" x2="238" y2="290" stroke="#085041" stroke-width="0.5" stroke-dasharray="3 3"/>
+<line x1="180" y1="300" x2="238" y2="370" stroke="#085041" stroke-width="0.5" stroke-dasharray="3 3"/>
+<line x1="180" y1="375" x2="238" y2="375" stroke="#444441" stroke-width="0.5" stroke-dasharray="3 3"/>
+</svg>

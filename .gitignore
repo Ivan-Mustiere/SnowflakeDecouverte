@@ -1,0 +1,59 @@
+# Environnement
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+
+# Airflow
+logs/
+airflow.db
+airflow.cfg
+webserver_config.py
+standalone_admin_password.txt
+
+# DBT
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+dbt_project/profiles.yml
+.user.yml
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+*.crc
+_SUCCESS
+
+# Données locales (le data lake est dans MinIO)
+data/
+*.parquet
+*.csv
+!dbt_project/seeds/*.csv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Docker
+**/postgres-db-volume/
+
+# Claude Code — fichiers perso (gitignorés, non partagés)
+CLAUDE.local.md
+.mcp.json
+.claude/settings.local.json
+.claude/hooks/*.local.sh
+.claude/setting.json
+.claude/setting.local.json

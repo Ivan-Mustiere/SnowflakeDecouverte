@@ -1,0 +1,28 @@
+# ============================================
+# Dépendances Python du projet
+# ============================================
+
+# Ingestion API
+requests==2.32.3
+pandas==2.2.3
+pyarrow==17.0.0
+
+# MinIO / S3
+boto3==1.35.36
+s3fs==2024.10.0
+minio==7.2.9
+
+# Spark
+pyspark==3.5.3
+
+# Snowflake
+snowflake-connector-python==3.12.3
+snowflake-sqlalchemy==1.6.1
+
+# DBT
+dbt-core==1.8.7
+dbt-snowflake==1.8.4
+
+# Utilitaires
+python-dotenv==1.0.1
+loguru==0.7.2

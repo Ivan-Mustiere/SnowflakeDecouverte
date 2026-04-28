@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Dimension calendaire (1 ligne par jour)"
+    columns:
+      - name: date_key
+        description: "Clé primaire"
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_vendor
+    description: "Référentiel des fournisseurs de taxi"
+    columns:
+      - name: vendor_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_payment
+    description: "Référentiel des modes de paiement"
+    columns:
+      - name: payment_type_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_zone
+    description: "Référentiel des zones taxi NYC TLC"
+    columns:
+      - name: zone_id
+        tests:
+          - unique
+          - not_null
+      - name: borough
+        tests:
+          - not_null
+
+  - name: fact_trips
+    description: "Table de faits : 1 ligne = 1 course de taxi"
+    columns:
+      - name: trip_key
+        description: "Clé technique (hash)"
+        tests:
+          - unique
+          - not_null
+      - name: pickup_date_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: vendor_id
+        tests:
+          - relationships:
+              to: ref('dim_vendor')
+              field: vendor_id
+      - name: payment_type_id
+        tests:
+          - relationships:
+              to: ref('dim_payment')
+              field: payment_type_id
+      - name: pickup_zone_id
+        tests:
+          - relationships:
+              to: ref('dim_zone')
+              field: zone_id
+      - name: total_amount
+        tests:
+          - not_null
