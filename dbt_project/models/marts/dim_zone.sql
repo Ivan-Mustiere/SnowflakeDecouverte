@@ -3,7 +3,7 @@
 -- Dim Zone : enrichi depuis le seed taxi_zones.csv (265 zones officielles NYC TLC).
 
 with zones as (
-    select * from {{ source('raw', 'taxi_zones') }}
+    select * from {{ ref('taxi_zones') }}
 )
 
 select

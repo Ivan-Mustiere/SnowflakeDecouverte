@@ -31,6 +31,7 @@ case "$FILE_PATH" in
         else
             echo "  ✗ Erreur de syntaxe — corriger avant de committer"
         fi
+        printf '%s\n' '{"systemMessage": "DAG/Spark/ingestion modifié — tape /data-eng-reviewer pour une review complète"}'
         ;;
 esac
 
@@ -41,11 +42,13 @@ case "$FILE_PATH" in
         echo "→ [DBT] Modèle modifié : $BASENAME"
         echo "  Penser à lancer : dbt test --profiles-dir /opt/airflow/dbt_project"
         echo "  (dans le conteneur airflow-webserver)"
+        printf '%s\n' '{"systemMessage": "DBT model modifié — tape /dbt-helper pour review schema.yml et tests"}'
         ;;
     */dbt_project/models/*.yml|*/dbt_project/seeds/*.csv)
         echo ""
         echo "→ [DBT] Schema/seed modifié : $BASENAME"
         echo "  Penser à lancer : dbt seed && dbt run && dbt test"
+        printf '%s\n' '{"systemMessage": "DBT schema/seed modifié — tape /dbt-helper pour vérifier les tests"}'
         ;;
 esac
 

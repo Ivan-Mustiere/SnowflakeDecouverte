@@ -3,6 +3,11 @@
 *.env
 !.env.example
 
+# Clés privées Snowflake
+*.p8
+*.pem
+snowflake_key*
+
 # Python
 __pycache__/
 *.py[cod]

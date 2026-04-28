@@ -16,6 +16,7 @@ from pathlib import Path
 
 import boto3
 from botocore.client import Config
+from cryptography.hazmat.primitives import serialization
 from loguru import logger
 import snowflake.connector
 
@@ -28,14 +29,26 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin123")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET", "nyc-taxi-lake")
 
+
+def _load_private_key() -> bytes:
+    key_path = os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH", "/opt/airflow/snowflake_key.p8")
+    with open(key_path, "rb") as f:
+        private_key = serialization.load_pem_private_key(f.read(), password=None)
+    return private_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+
 SF_CONFIG = {
-    "account":   os.environ["SNOWFLAKE_ACCOUNT"],
-    "user":      os.environ["SNOWFLAKE_USER"],
-    "password":  os.environ["SNOWFLAKE_PASSWORD"],
-    "role":      os.getenv("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
-    "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
-    "database":  os.getenv("SNOWFLAKE_DATABASE", "NYC_TAXI"),
-    "schema":    "RAW",
+    "account":     os.environ["SNOWFLAKE_ACCOUNT"],
+    "user":        os.environ["SNOWFLAKE_USER"],
+    "private_key": _load_private_key(),
+    "role":        os.getenv("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
+    "warehouse":   os.getenv("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
+    "database":    os.getenv("SNOWFLAKE_DATABASE", "NYC_TAXI"),
+    "schema":      "RAW",
 }
 
 

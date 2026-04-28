@@ -13,11 +13,9 @@ CREATE WAREHOUSE IF NOT EXISTS COMPUTE_WH
 -- 2. Base et schémas (pattern medallion)
 CREATE DATABASE IF NOT EXISTS NYC_TAXI;
 
-USE DATABASE NYC_TAXI;
-
-CREATE SCHEMA IF NOT EXISTS RAW;       -- données chargées telles quelles
-CREATE SCHEMA IF NOT EXISTS STAGING;   -- transformations DBT (vues)
-CREATE SCHEMA IF NOT EXISTS MARTS;     -- modèle dimensionnel final
+CREATE SCHEMA IF NOT EXISTS NYC_TAXI.RAW;       -- données chargées telles quelles
+CREATE SCHEMA IF NOT EXISTS NYC_TAXI.STAGING;   -- transformations DBT (vues)
+CREATE SCHEMA IF NOT EXISTS NYC_TAXI.MARTS;     -- modèle dimensionnel final
 
 -- 3. File format Parquet
 CREATE OR REPLACE FILE FORMAT NYC_TAXI.RAW.PARQUET_FORMAT

@@ -5,66 +5,65 @@ Séquence complète pour une démo propre et reproductible.
 ## Reset propre (J-1 ou le matin)
 
 ```bash
-# Arrêter et nettoyer les conteneurs (sans toucher aux volumes MinIO/Postgres)
+# Accès Docker socket (requis après chaque démarrage WSL)
+sudo chmod 666 /var/run/docker.sock
+
+# Arrêter et relancer
 docker compose down
-
-# Optionnel : reset complet des données (si on repart de zéro)
-# docker compose down -v   ← ATTENTION : efface MinIO et Postgres
-
-# Relancer
-docker compose up airflow-init   # si reset complet uniquement
 docker compose up -d
-docker compose ps                # attendre que tout soit healthy (~60s)
+docker compose ps    # attendre que tout soit healthy (~3-5 min pour les packages pip)
 ```
 
 ## Vérifications pré-démo
 
 ```bash
-# 1. Stack healthy
+# 1. Stack healthy (6 services)
 docker compose ps
 
-# 2. .env rempli
+# 2. Credentials présents
 grep SNOWFLAKE_ACCOUNT .env
+grep SNOWFLAKE_PRIVATE_KEY_PATH .env
 
-# 3. Snowflake joignable (si snowflake-connector installé en local)
-python3 -c "import snowflake.connector; print('OK')"
+# 3. Clé privée montée
+docker compose exec airflow-webserver ls /opt/airflow/snowflake_key.p8
 ```
 
-Dans Snowflake, vérifier que `COMPUTE_WH` existe et `NYC_TAXI` est initialisé :
+Dans Snowflake, vérifier que `NYC_TAXI` est initialisé :
 ```sql
-SHOW WAREHOUSES LIKE 'COMPUTE_WH';
 SHOW SCHEMAS IN DATABASE NYC_TAXI;
+-- Doit lister RAW, STAGING, MARTS
 ```
 
 ## Séquence de démo (15-20 min)
 
 ### 1. Architecture (2 min)
 Ouvrir `docs/architecture.svg`. Décrire le flux : API → MinIO → Spark → Snowflake → DBT.
-Points techniques à mentionner : Parquet Snappy, partitionnement year/month/day, stage interne Snowflake, surrogate keys DBT.
+Points techniques : Parquet Snappy, partitionnement year/month/day, stage interne Snowflake, surrogate keys DBT, authentification RSA.
 
 ### 2. Démarrage stack (1 min)
 ```bash
 docker compose up -d
 docker compose ps
 ```
-Montrer les 7 services : postgres, minio, minio-init, spark-master, spark-worker, airflow-webserver, airflow-scheduler.
+Montrer les 6 services : postgres, minio, spark-master, spark-worker, airflow-webserver, airflow-scheduler.
 
 ### 3. Trigger DAG (1 min)
-Airflow UI → http://localhost:8085 → activer `nyc_taxi_pipeline`
-→ Trigger DAG w/ config :
+Airflow UI → http://localhost:8085 → `nyc_taxi_pipeline`
+→ Trigger DAG → Configuration JSON :
 ```json
-{ "logical_date": "2024-01-15" }
+{ "logical_date": "2018-01-15" }
 ```
 
 ### 4. Suivi en direct (~10 min pendant l'exécution)
 
 Alterner entre :
-- **Airflow Graph View** : progression extract → spark → load → dbt_run → dbt_test → log_metrics
+- **Airflow Graph View** : extract_api → spark_clean → load_snowflake → dbt_run → dbt_test → log_metrics
 - **MinIO Console** http://localhost:9001 : apparition du fichier dans `raw/` puis `staging/`
 - **Spark UI** http://localhost:8081 : job actif pendant `spark_clean`
 - **Snowflake** après `load_snowflake` :
   ```sql
-  SELECT COUNT(*) FROM NYC_TAXI.RAW.YELLOW_TRIPS WHERE pickup_date = '2024-01-15';
+  SELECT COUNT(*) FROM NYC_TAXI.RAW.YELLOW_TRIPS WHERE pickup_date = '2018-01-15';
+  -- ~195847 lignes
   ```
 
 ### 5. Requêtes analytiques (3-4 min)
@@ -103,8 +102,10 @@ Montrer : run_id, étapes, statuts, durées, rows_processed.
 
 ## Points techniques à préparer (questions jury)
 
-- **Pourquoi MinIO et pas S3 ?** → reproductible localement, même API boto3
+- **Pourquoi MinIO et pas S3 ?** → reproductible localement, même API boto3/S3A
 - **Pourquoi un stage interne Snowflake ?** → Snowflake cloud ne peut pas accéder à un MinIO local
 - **Idempotence ?** → DELETE par pickup_date avant COPY INTO + Spark overwrite
 - **Pourquoi Spark pour 200k lignes ?** → démo de la techno ; en prod les données sont ~10M/jour
 - **Surrogate key ?** → évite les doublons si re-run, clé stable indépendante de l'ordre d'insertion
+- **Pourquoi authentification RSA ?** → MFA Snowflake incompatible avec les connexions programmatiques
+- **Données 2018 et pas 2024 ?** → dataset Socrata `t29m-gskq` n'a de données significatives qu'en 2018 (112M lignes)

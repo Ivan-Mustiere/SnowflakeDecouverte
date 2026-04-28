@@ -8,30 +8,29 @@ Orchestration end-to-end :
     4. dbt_run          : DBT staging + marts
     5. dbt_test         : tests qualité DBT
     6. log_metrics      : insert dans pipeline_runs (monitoring)
+
+Trigger manuel :
+    Airflow UI -> Trigger DAG -> Configuration JSON :
+    { "logical_date": "2018-01-15" }
 """
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
-from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
-# Permettre l'import des modules du projet
 sys.path.insert(0, "/opt/airflow")
 
-from ingestion.extract_api import run_ingestion          # noqa: E402
-from sf_loader.load_to_snowflake import load_to_snowflake  # noqa: E402
+from ingestion.extract_api import run_ingestion              # noqa: E402
+from sf_loader.load_to_snowflake import load_to_snowflake    # noqa: E402
 
 
-# -----------------------------------------------------------------------------
-# Config DAG
-# -----------------------------------------------------------------------------
 DEFAULT_ARGS = {
     "owner": "ivan",
     "depends_on_past": False,
@@ -40,44 +39,52 @@ DEFAULT_ARGS = {
     "retry_delay": timedelta(minutes=5),
 }
 
-DBT_PROJECT_DIR = "/opt/airflow/dbt_project"
+DBT_PROJECT_DIR  = "/opt/airflow/dbt_project"
 DBT_PROFILES_DIR = "/opt/airflow/dbt_project"
+
+# Date par défaut si le DAG est triggeré sans config
+DEFAULT_DATE = "2018-01-15"
 
 
 # -----------------------------------------------------------------------------
 # Tasks
 # -----------------------------------------------------------------------------
 @task(task_id="extract_api")
-def extract_task(execution_date: str) -> dict:
-    """Étape 1 : ingestion API -> MinIO (raw layer)."""
+def extract_task(date_str: str) -> dict:
     start = time.time()
-    result = run_ingestion(execution_date)
+    result = run_ingestion(date_str)
     result["duration_sec"] = round(time.time() - start, 2)
     return result
 
 
 @task(task_id="load_snowflake")
-def load_task(execution_date: str) -> dict:
-    """Étape 3 : chargement MinIO staging -> Snowflake RAW."""
+def load_task(date_str: str) -> dict:
     start = time.time()
-    rows = load_to_snowflake(execution_date)
+    rows = load_to_snowflake(date_str)
     return {
         "rows": rows,
         "duration_sec": round(time.time() - start, 2),
-        "date": execution_date,
+        "date": date_str,
     }
 
 
 @task(task_id="log_metrics")
 def log_metrics_task(extract_result: dict, load_result: dict) -> None:
-    """Étape 6 : enregistrement des métriques (bonus monitoring)."""
-    import os
     import snowflake.connector
+    from cryptography.hazmat.primitives import serialization
 
+    key_path = os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH", "/opt/airflow/snowflake_key.p8")
+    with open(key_path, "rb") as f:
+        private_key = serialization.load_pem_private_key(f.read(), password=None)
+    private_key_bytes = private_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
     conn = snowflake.connector.connect(
         account=os.environ["SNOWFLAKE_ACCOUNT"],
         user=os.environ["SNOWFLAKE_USER"],
-        password=os.environ["SNOWFLAKE_PASSWORD"],
+        private_key=private_key_bytes,
         role=os.getenv("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
         warehouse=os.getenv("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
         database=os.getenv("SNOWFLAKE_DATABASE", "NYC_TAXI"),
@@ -87,7 +94,7 @@ def log_metrics_task(extract_result: dict, load_result: dict) -> None:
     run_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     exec_date = load_result["date"]
 
-    rows = [
+    records = [
         (run_id, exec_date, "extract", "OK", extract_result.get("rows", 0),
          extract_result.get("duration_sec", 0), None),
         (run_id, exec_date, "load",    "OK", load_result.get("rows", 0),
@@ -97,7 +104,7 @@ def log_metrics_task(extract_result: dict, load_result: dict) -> None:
         INSERT INTO NYC_TAXI.RAW.PIPELINE_RUNS
         (run_id, execution_date, step, status, rows_processed, duration_sec, error_message)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """, rows)
+    """, records)
     cur.close()
     conn.close()
     print(f"Métriques enregistrées pour run_id={run_id}")
@@ -110,33 +117,29 @@ with DAG(
     dag_id="nyc_taxi_pipeline",
     default_args=DEFAULT_ARGS,
     description="Pipeline NYC Taxi : API -> MinIO -> Spark -> Snowflake -> DBT",
-    schedule_interval="0 6 * * *",   # tous les jours à 6h UTC
-    start_date=datetime(2024, 1, 1),
+    schedule=None,          # déclenchement manuel uniquement
+    start_date=datetime(2018, 1, 1),
     catchup=False,
     max_active_runs=1,
+    params={"logical_date": DEFAULT_DATE},
     tags=["projet_final", "nyc_taxi", "data_engineering"],
 ) as dag:
 
-    # Date d'exécution (à passer en YYYY-MM-DD à toutes les étapes)
-    EXEC_DATE = "{{ ds }}"
+    # Date lue depuis les params du trigger (ou DEFAULT_DATE)
+    EXEC_DATE = "{{ params.logical_date }}"
 
     # 1. Extraction API
     extract = extract_task(EXEC_DATE)
 
     # 2. Spark clean & enrich
-    spark_clean = SparkSubmitOperator(
+    spark_clean = BashOperator(
         task_id="spark_clean",
-        application="/opt/airflow/spark_jobs/clean_and_enrich.py",
-        conn_id="spark_default",   # à créer dans Airflow UI : spark://spark-master:7077
-        application_args=[EXEC_DATE],
-        packages="org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262",
-        env_vars={
-            "MINIO_ENDPOINT":  "{{ var.value.get('MINIO_ENDPOINT', 'http://minio:9000') }}",
-            "MINIO_ACCESS_KEY": "{{ var.value.get('MINIO_ACCESS_KEY', 'minioadmin') }}",
-            "MINIO_SECRET_KEY": "{{ var.value.get('MINIO_SECRET_KEY', 'minioadmin123') }}",
-            "MINIO_BUCKET":    "{{ var.value.get('MINIO_BUCKET', 'nyc-taxi-lake') }}",
-        },
-        verbose=True,
+        bash_command=(
+            "docker exec nyc_spark_master "
+            "/opt/spark/bin/spark-submit "
+            "--packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 "
+            "/opt/spark_jobs/clean_and_enrich.py {{ params.logical_date }}"
+        ),
     )
 
     # 3. Load Snowflake
@@ -162,7 +165,7 @@ with DAG(
         ),
     )
 
-    # 6. Log metrics (bonus monitoring)
+    # 6. Log metrics
     metrics = log_metrics_task(extract, load)
 
     # Dépendances

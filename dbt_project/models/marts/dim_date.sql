@@ -1,12 +1,11 @@
 {{ config(materialized='table') }}
 
--- Dim Date : générée par CTE récursive sur 5 ans (2020-2024).
--- Adapter les bornes selon votre dataset.
+-- Dim Date : générée par CTE récursive couvrant 2018-2019 (données réelles du dataset).
 
 with date_spine as (
     select
-        dateadd(day, seq4(), to_date('2020-01-01')) as date_day
-    from table(generator(rowcount => 1827))   -- ~5 ans
+        dateadd(day, seq4(), to_date('2018-01-01')) as date_day
+    from table(generator(rowcount => 730))   -- 2 ans (2018-2019)
 ),
 
 enriched as (

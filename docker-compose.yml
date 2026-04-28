@@ -43,10 +43,10 @@ x-airflow-common: &airflow-common
     NYC_DATASET_ID: ${NYC_DATASET_ID:-t29m-gskq}
     SNOWFLAKE_ACCOUNT: ${SNOWFLAKE_ACCOUNT}
     SNOWFLAKE_USER: ${SNOWFLAKE_USER}
-    SNOWFLAKE_PASSWORD: ${SNOWFLAKE_PASSWORD}
     SNOWFLAKE_ROLE: ${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
     SNOWFLAKE_WAREHOUSE: ${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
     SNOWFLAKE_DATABASE: ${SNOWFLAKE_DATABASE:-NYC_TAXI}
+    SNOWFLAKE_PRIVATE_KEY_PATH: ${SNOWFLAKE_PRIVATE_KEY_PATH:-/opt/airflow/snowflake_key.p8}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
@@ -56,7 +56,11 @@ x-airflow-common: &airflow-common
     - ./spark_jobs:/opt/airflow/spark_jobs
     - ./sf_loader:/opt/airflow/sf_loader
     - ./dbt_project:/opt/airflow/dbt_project
+    - ./snowflake_key.p8:/opt/airflow/snowflake_key.p8:ro
+    - /var/run/docker.sock:/var/run/docker.sock
   user: "${AIRFLOW_UID:-50000}:0"
+  group_add:
+    - "989"
   depends_on: &airflow-common-depends-on
     postgres:
       condition: service_healthy
@@ -123,29 +127,30 @@ services:
   spark-master:
     image: apache/spark:3.5.3
     container_name: nyc_spark_master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_NO_DAEMONIZE=true
     ports:
       - "8081:8080"   # Spark UI
       - "7077:7077"   # Spark master
     volumes:
       - ./spark_jobs:/opt/spark_jobs
+      - spark-ivy-cache:/home/spark/.ivy2
     restart: always
 
   spark-worker:
     image: apache/spark:3.5.3
     container_name: nyc_spark_worker
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     depends_on:
       - spark-master
     environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_NO_DAEMONIZE=true
       - SPARK_WORKER_MEMORY=2G
       - SPARK_WORKER_CORES=2
     volumes:
       - ./spark_jobs:/opt/spark_jobs
+      - spark-ivy-cache:/home/spark/.ivy2
     restart: always
 
   # ----------------------------------------------------------
@@ -200,3 +205,4 @@ services:
 volumes:
   postgres-db-volume:
   minio-data:
+  spark-ivy-cache:

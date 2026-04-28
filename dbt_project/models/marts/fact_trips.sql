@@ -14,7 +14,7 @@ with trips as (
 select
     -- Clé technique
     {{ dbt_utils.generate_surrogate_key([
-        'vendor_id', 'pickup_at', 'pickup_location_id', 'dropoff_location_id'
+        'vendor_id', 'pickup_at', 'dropoff_at', 'pickup_location_id', 'dropoff_location_id'
     ]) }}                                       as trip_key,
 
     -- Foreign keys vers les dimensions
